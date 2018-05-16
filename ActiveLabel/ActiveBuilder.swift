@@ -17,7 +17,7 @@ struct ActiveBuilder {
         case .mention, .hashtag:
             return createElementsIgnoringFirstCharacter(from: text, for: type, range: range, filterPredicate: filterPredicate)
         case .url:
-            return createElements(from: text, for: type, range: range, filterPredicate: filterPredicate)
+            return createURLElements(from: text, range: range, filterPredicate: filterPredicate)
         case .custom:
             return createElements(from: text, for: type, range: range, minLength: 1, filterPredicate: filterPredicate)
         }
@@ -26,7 +26,9 @@ struct ActiveBuilder {
     static func createURLElements(from text: String, range: NSRange, maximumLength: Int?) -> ([ElementTuple], String) {
         let type = ActiveType.url
         var text = text
-        let matches = RegexParser.getElements(from: text, with: type.pattern, range: range)
+        let detector = try! NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        let range = NSRange(location: 0, length: text.utf16.count)
+        let matches = detector.matches(in: text, options: [], range: range)
         let nsstring = text as NSString
         var elements: [ElementTuple] = []
 
@@ -52,10 +54,10 @@ struct ActiveBuilder {
     }
 
     private static func createElements(from text: String,
-                                            for type: ActiveType,
-                                                range: NSRange,
-                                                minLength: Int = 2,
-                                                filterPredicate: ActiveFilterPredicate?) -> [ElementTuple] {
+                                       for type: ActiveType,
+                                       range: NSRange,
+                                       minLength: Int = 2,
+                                       filterPredicate: ActiveFilterPredicate?) -> [ElementTuple] {
 
         let matches = RegexParser.getElements(from: text, with: type.pattern, range: range)
         let nsstring = text as NSString
@@ -72,10 +74,32 @@ struct ActiveBuilder {
         return elements
     }
 
+    private static func createURLElements(from text: String,
+                                          range: NSRange,
+                                          minLength: Int = 2,
+                                          filterPredicate: ActiveFilterPredicate?) -> [ElementTuple] {
+        let type = ActiveType.url
+        let detector = try! NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        let range = NSRange(location: 0, length: text.utf16.count)
+        let matches = detector.matches(in: text, options: [], range: range)
+        let nsstring = text as NSString
+        var elements: [ElementTuple] = []
+
+        for match in matches where match.range.length > minLength {
+            let word = nsstring.substring(with: match.range)
+                .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            if filterPredicate?(word) ?? true {
+                let element = ActiveElement.create(with: type, text: word)
+                elements.append((match.range, element, type))
+            }
+        }
+        return elements
+    }
+
     private static func createElementsIgnoringFirstCharacter(from text: String,
-                                                                  for type: ActiveType,
-                                                                      range: NSRange,
-                                                                      filterPredicate: ActiveFilterPredicate?) -> [ElementTuple] {
+                                                             for type: ActiveType,
+                                                             range: NSRange,
+                                                             filterPredicate: ActiveFilterPredicate?) -> [ElementTuple] {
         let matches = RegexParser.getElements(from: text, with: type.pattern, range: range)
         let nsstring = text as NSString
         var elements: [ElementTuple] = []
