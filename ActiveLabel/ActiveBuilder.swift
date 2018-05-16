@@ -58,7 +58,6 @@ struct ActiveBuilder {
                                        range: NSRange,
                                        minLength: Int = 2,
                                        filterPredicate: ActiveFilterPredicate?) -> [ElementTuple] {
-
         let matches = RegexParser.getElements(from: text, with: type.pattern, range: range)
         let nsstring = text as NSString
         var elements: [ElementTuple] = []
